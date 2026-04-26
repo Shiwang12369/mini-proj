@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Challan Details{% endblock %}
+{% block page_title %}<i class="fas fa-file-invoice"></i> Challan #{{ challan.challan_number }}{% endblock %}
+
+{% block content %}
+<div class="challan-detail-page">
+    <div class="challan-print-card" id="challanPrint">
+        <!-- Header -->
+        <div class="challan-print-header">
+            <div class="challan-print-logo">
+                <i class="fas fa-traffic-light"></i>
+                <div>
+                    <h2>Traffic Management System</h2>
+                    <p>Government Traffic Authority</p>
+                </div>
+            </div>
+            <div class="challan-print-number">
+                <span class="label">Challan Number</span>
+                <span class="value">{{ challan.challan_number }}</span>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="challan-status-bar challan-status-{{ challan.status }}">
+            <i class="fas {% if challan.status == 'paid' %}fa-check-circle{% elif challan.status == 'overdue' %}fa-exclamation-circle{% elif challan.status == 'pending' %}fa-clock{% else %}fa-info-circle{% endif %}"></i>
+            {{ challan.status | upper }}
+        </div>
+
+        <!-- Details Grid -->
+        <div class="challan-details-grid">
+            <div class="challan-section">
+                <h3><i class="fas fa-car"></i> Vehicle Information</h3>
+                <div class="detail-row"><span>Registration</span><strong>{{ challan.registration_number }}</strong></div>
+                <div class="detail-row"><span>Type</span><strong>{{ challan.vehicle_type | capitalize }}</strong></div>
+                <div class="detail-row"><span>Make / Model</span><strong>{{ challan.make or '-' }} {{ challan.vehicle_model or '' }}</strong></div>
+                <div class="detail-row"><span>Color</span><strong>{{ challan.color or '-' }}</strong></div>
+            </div>
+
+            <div class="challan-section">
+                <h3><i class="fas fa-user"></i> Owner Details</h3>
+                <div class="detail-row"><span>Name</span><strong>{{ challan.owner_name or 'Unknown' }}</strong></div>
+                <div class="detail-row"><span>Phone</span><strong>{{ challan.owner_phone or '-' }}</strong></div>
+                <div class="detail-row"><span>Email</span><strong>{{ challan.owner_email or '-' }}</strong></div>
+                <div class="detail-row"><span>Address</span><strong>{{ challan.owner_address or '-' }}</strong></div>
+            </div>
+
+            <div class="challan-section">
+                <h3><i class="fas fa-exclamation-triangle"></i> Violation Details</h3>
+                <div class="detail-row"><span>Code</span><strong>{{ challan.violation_code }}</strong></div>
+                <div class="detail-row"><span>Description</span><strong>{{ challan.violation_desc }}</strong></div>
+                <div class="detail-row"><span>Severity</span><strong><span class="badge badge-severity-{{ challan.severity }}">{{ challan.severity | capitalize }}</span></strong></div>
+                <div class="detail-row"><span>Points</span><strong>{{ challan.points }}</strong></div>
+            </div>
+
+            <div class="challan-section">
+                <h3><i class="fas fa-info-circle"></i> Challan Information</h3>
+                <div class="detail-row"><span>Location</span><strong>{{ challan.location or '-' }}</strong></div>
+                <div class="detail-row"><span>Signal</span><strong>{{ challan.signal_code or '-' }} {{ ('— ' + challan.signal_location) if challan.signal_location else '' }}</strong></div>
+                <div class="detail-row"><span>Issued By</span><strong>{{ challan.officer_name or '-' }} {% if challan.badge_number %}({{ challan.badge_number }}){% endif %}</strong></div>
+                <div class="detail-row"><span>Date Issued</span><strong>{{ challan.date_issued | format_datetime }}</strong></div>
+                <div class="detail-row"><span>Due Date</span><strong>{{ challan.due_date | format_date }}</strong></div>
+                {% if challan.paid_date %}
+                <div class="detail-row"><span>Paid Date</span><strong>{{ challan.paid_date | format_date }}</strong></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Fine Amount -->
+        <div class="challan-fine-box">
+            <span class="fine-label">Total Fine Amount</span>
+            <span class="fine-value">₹{{ "{:,.2f}".format(challan.fine_amount) }}</span>
+        </div>
+
+        {% if challan.description %}
+        <div class="challan-notes">
+            <h4>Description</h4>
+            <p>{{ challan.description }}</p>
+        </div>
+        {% endif %}
+
+        {% if challan.remarks %}
+        <div class="challan-notes">
+            <h4>Remarks</h4>
+            <p>{{ challan.remarks }}</p>
+        </div>
+        {% endif %}
+
+        <div class="challan-print-footer">
+            <p>This is a computer-generated document. No signature required.</p>
+            <p>Traffic Management System &copy; {{ "2026" }}</p>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="challan-actions">
+        <a href="{{ url_for('challans.index') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to List</a>
+        <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Challan</button>
+        {% if challan.status not in ['paid', 'cancelled'] %}
+        <form method="POST" action="{{ url_for('challans.update_status', challan_id=challan.id) }}" class="inline-form">
+            <input type="hidden" name="status" value="paid">
+            <button type="submit" class="btn btn-success" onclick="return confirm('Mark as paid?')"><i class="fas fa-check"></i> Mark as Paid</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

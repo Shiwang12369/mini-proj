@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Vehicles{% endblock %}
+{% block page_title %}<i class="fas fa-car"></i> Vehicle Management{% endblock %}
+
+{% block content %}
+<!-- Top Actions -->
+<div class="page-actions">
+    <form class="search-form" method="GET">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search"></i>
+            <input type="text" name="search" placeholder="Search by registration, make, model, owner..." value="{{ search }}" id="searchInput">
+            {% if search %}<a href="{{ url_for('vehicles.index') }}" class="search-clear"><i class="fas fa-times"></i></a>{% endif %}
+        </div>
+        <select name="type" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            <option value="car" {% if vehicle_type == 'car' %}selected{% endif %}>🚗 Car</option>
+            <option value="bike" {% if vehicle_type == 'bike' %}selected{% endif %}>🏍️ Bike</option>
+            <option value="truck" {% if vehicle_type == 'truck' %}selected{% endif %}>🚛 Truck</option>
+            <option value="bus" {% if vehicle_type == 'bus' %}selected{% endif %}>🚌 Bus</option>
+            <option value="auto" {% if vehicle_type == 'auto' %}selected{% endif %}>🛺 Auto</option>
+            <option value="other" {% if vehicle_type == 'other' %}selected{% endif %}>🚙 Other</option>
+        </select>
+        <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i> Search</button>
+    </form>
+    <button class="btn btn-primary" onclick="openModal('addVehicleModal')">
+        <i class="fas fa-plus"></i> Add Vehicle
+    </button>
+</div>
+
+<!-- Vehicles Table -->
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="data-table" id="vehiclesTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Registration No.</th>
+                    <th>Type</th>
+                    <th>Make & Model</th>
+                    <th>Color</th>
+                    <th>Year</th>
+                    <th>Owner</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehicles %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><span class="text-mono text-primary">{{ v.registration_number }}</span></td>
+                    <td><span class="badge badge-type-{{ v.vehicle_type }}">{{ v.vehicle_type | capitalize }}</span></td>
+                    <td>{{ v.make or '-' }} {{ v.model or '' }}</td>
+                    <td>
+                        {% if v.color %}
+                        <span class="color-dot" style="background: {{ v.color.lower() }}"></span>
+                        {{ v.color }}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{{ v.year or '-' }}</td>
+                    <td>{{ v.owner_name or '<span class="text-muted">Unassigned</span>' | safe }}</td>
+                    <td class="actions-cell">
+                        <button class="btn-icon btn-edit" onclick="editVehicle({{ v | tojson }})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <form method="POST" action="{{ url_for('vehicles.delete', vehicle_id=v.id) }}" class="inline-form" onsubmit="return confirm('Delete this vehicle?')">
+                            <button type="submit" class="btn-icon btn-delete" title="Delete"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not vehicles %}
+                <tr><td colspan="8" class="text-center text-muted empty-state"><i class="fas fa-car fa-2x"></i><br>No vehicles found</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <div class="table-footer">
+        <span class="result-count">{{ vehicles | length }} vehicle(s) found</span>
+    </div>
+</div>
+
+<!-- Add Vehicle Modal -->
+<div class="modal" id="addVehicleModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-plus-circle"></i> Add New Vehicle</h2>
+            <button class="modal-close" onclick="closeModal('addVehicleModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('vehicles.add') }}">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Registration Number *</label>
+                        <input type="text" name="registration_number" placeholder="e.g. DL-01-AB-1234" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Vehicle Type *</label>
+                        <select name="vehicle_type" required>
+                            <option value="car">🚗 Car</option>
+                            <option value="bike">🏍️ Bike</option>
+                            <option value="truck">🚛 Truck</option>
+                            <option value="bus">🚌 Bus</option>
+                            <option value="auto">🛺 Auto</option>
+                            <option value="other">🚙 Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Make</label>
+                        <input type="text" name="make" placeholder="e.g. Maruti Suzuki">
+                    </div>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" name="model" placeholder="e.g. Swift">
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <input type="text" name="color" placeholder="e.g. White">
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <input type="number" name="year" min="1990" max="2030" placeholder="e.g. 2024">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Owner</label>
+                        <select name="owner_id">
+                            <option value="">-- Select Owner --</option>
+                            {% for o in owners %}
+                            <option value="{{ o.id }}">{{ o.name }} ({{ o.phone }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addVehicleModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Vehicle</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Vehicle Modal -->
+<div class="modal" id="editVehicleModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit"></i> Edit Vehicle</h2>
+            <button class="modal-close" onclick="closeModal('editVehicleModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" id="editVehicleForm">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Registration Number *</label>
+                        <input type="text" name="registration_number" id="edit_v_reg" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Vehicle Type *</label>
+                        <select name="vehicle_type" id="edit_v_type" required>
+                            <option value="car">🚗 Car</option>
+                            <option value="bike">🏍️ Bike</option>
+                            <option value="truck">🚛 Truck</option>
+                            <option value="bus">🚌 Bus</option>
+                            <option value="auto">🛺 Auto</option>
+                            <option value="other">🚙 Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Make</label>
+                        <input type="text" name="make" id="edit_v_make">
+                    </div>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" name="model" id="edit_v_model">
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <input type="text" name="color" id="edit_v_color">
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <input type="number" name="year" id="edit_v_year" min="1990" max="2030">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Owner</label>
+                        <select name="owner_id" id="edit_v_owner">
+                            <option value="">-- Select Owner --</option>
+                            {% for o in owners %}
+                            <option value="{{ o.id }}">{{ o.name }} ({{ o.phone }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editVehicleModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Vehicle</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editVehicle(v) {
+    document.getElementById('editVehicleForm').action = '/vehicles/edit/' + v.id;
+    document.getElementById('edit_v_reg').value = v.registration_number || '';
+    document.getElementById('edit_v_type').value = v.vehicle_type || 'car';
+    document.getElementById('edit_v_make').value = v.make || '';
+    document.getElementById('edit_v_model').value = v.model || '';
+    document.getElementById('edit_v_color').value = v.color || '';
+    document.getElementById('edit_v_year').value = v.year || '';
+    document.getElementById('edit_v_owner').value = v.owner_id || '';
+    openModal('editVehicleModal');
+}
+</script>
+{% endblock %}

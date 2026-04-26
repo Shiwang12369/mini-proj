@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon"><i class="fas fa-car"></i></div>
+        <div class="stat-info">
+            <span class="stat-value">{{ stats.total_vehicles }}</span>
+            <span class="stat-label">Total Vehicles</span>
+        </div>
+        <div class="stat-trend"><i class="fas fa-database"></i></div>
+    </div>
+    <div class="stat-card stat-card-warning">
+        <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        <div class="stat-info">
+            <span class="stat-value">{{ stats.pending_challans }}</span>
+            <span class="stat-label">Pending Challans</span>
+        </div>
+        <div class="stat-trend"><i class="fas fa-clock"></i></div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon"><i class="fas fa-indian-rupee-sign"></i></div>
+        <div class="stat-info">
+            <span class="stat-value">₹{{ "{:,.0f}".format(stats.total_revenue) }}</span>
+            <span class="stat-label">Revenue Collected</span>
+        </div>
+        <div class="stat-trend"><i class="fas fa-arrow-up"></i></div>
+    </div>
+    <div class="stat-card stat-card-info">
+        <div class="stat-icon"><i class="fas fa-traffic-light"></i></div>
+        <div class="stat-info">
+            <span class="stat-value">{{ stats.active_signals }}/{{ stats.total_signals }}</span>
+            <span class="stat-label">Active Signals</span>
+        </div>
+        <div class="stat-trend"><i class="fas fa-signal"></i></div>
+    </div>
+</div>
+
+<!-- Secondary Stats -->
+<div class="stats-grid stats-grid-secondary">
+    <div class="stat-card-mini">
+        <div class="stat-mini-icon bg-purple"><i class="fas fa-users"></i></div>
+        <div>
+            <span class="stat-mini-value">{{ stats.total_owners }}</span>
+            <span class="stat-mini-label">Registered Owners</span>
+        </div>
+    </div>
+    <div class="stat-card-mini">
+        <div class="stat-mini-icon bg-red"><i class="fas fa-exclamation-circle"></i></div>
+        <div>
+            <span class="stat-mini-value">{{ stats.overdue_challans }}</span>
+            <span class="stat-mini-label">Overdue Challans</span>
+        </div>
+    </div>
+    <div class="stat-card-mini">
+        <div class="stat-mini-icon bg-green"><i class="fas fa-check-circle"></i></div>
+        <div>
+            <span class="stat-mini-value">{{ stats.paid_challans }}</span>
+            <span class="stat-mini-label">Paid Challans</span>
+        </div>
+    </div>
+    <div class="stat-card-mini">
+        <div class="stat-mini-icon bg-amber"><i class="fas fa-indian-rupee-sign"></i></div>
+        <div>
+            <span class="stat-mini-value">₹{{ "{:,.0f}".format(stats.pending_amount) }}</span>
+            <span class="stat-mini-label">Pending Amount</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-chart-bar"></i> Monthly Challans & Revenue</h3>
+        </div>
+        <div class="chart-body">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-chart-doughnut"></i> Violation Distribution</h3>
+        </div>
+        <div class="chart-body">
+            <canvas id="violationChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Second Charts Row -->
+<div class="charts-grid">
+    <div class="chart-card chart-card-small">
+        <div class="chart-header">
+            <h3><i class="fas fa-chart-pie"></i> Challan Status</h3>
+        </div>
+        <div class="chart-body">
+            <canvas id="statusChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-card chart-card-small">
+        <div class="chart-header">
+            <h3><i class="fas fa-car-side"></i> Vehicle Types</h3>
+        </div>
+        <div class="chart-body">
+            <canvas id="vehicleChart"></canvas>
+        </div>
+    </div>
+    <!-- Recent Challans -->
+    <div class="chart-card chart-card-table">
+        <div class="chart-header">
+            <h3><i class="fas fa-clock"></i> Recent Challans</h3>
+            <a href="{{ url_for('challans.index') }}" class="view-all-btn">View All <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="chart-body">
+            <table class="mini-table">
+                <thead>
+                    <tr>
+                        <th>Vehicle</th>
+                        <th>Violation</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for challan in recent_challans %}
+                    <tr>
+                        <td><span class="text-mono">{{ challan.registration_number }}</span></td>
+                        <td>{{ challan.violation_desc[:25] }}{% if challan.violation_desc|length > 25 %}...{% endif %}</td>
+                        <td>₹{{ "{:,.0f}".format(challan.fine_amount) }}</td>
+                        <td><span class="badge badge-{{ challan.status }}">{{ challan.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not recent_challans %}
+                    <tr><td colspan="4" class="text-center text-muted">No challans yet</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fetch chart data
+    fetch('/api/chart-data')
+        .then(r => r.json())
+        .then(data => {
+            initMonthlyChart(data.monthly);
+            initViolationChart(data.violations);
+            initStatusChart(data.status);
+            initVehicleChart(data.vehicle_types);
+        })
+        .catch(err => console.log('Chart data loading...'));
+});
+
+function initMonthlyChart(data) {
+    const ctx = document.getElementById('monthlyChart');
+    if (!ctx || !data.length) return;
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.month),
+            datasets: [{
+                label: 'Challans Issued',
+                data: data.map(d => d.total),
+                backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                borderColor: '#6366f1',
+                borderWidth: 1,
+                borderRadius: 6
+            }, {
+                label: 'Revenue (₹)',
+                data: data.map(d => d.revenue),
+                type: 'line',
+                borderColor: '#22d3ee',
+                backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                tension: 0.4,
+                fill: true,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter' } } } },
+            scales: {
+                x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y1: { position: 'right', ticks: { color: '#64748b' }, grid: { display: false } }
+            }
+        }
+    });
+}
+
+function initViolationChart(data) {
+    const ctx = document.getElementById('violationChart');
+    if (!ctx || !data.length) return;
+    const colors = ['#6366f1','#22d3ee','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4'];
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.map(d => d.label),
+            datasets: [{
+                data: data.map(d => d.count),
+                backgroundColor: colors.slice(0, data.length),
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, padding: 12, usePointStyle: true } }
+            }
+        }
+    });
+}
+
+function initStatusChart(data) {
+    const ctx = document.getElementById('statusChart');
+    if (!ctx || !data.length) return;
+    const colorMap = { pending: '#f59e0b', paid: '#10b981', overdue: '#ef4444', disputed: '#8b5cf6', cancelled: '#64748b' };
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: data.map(d => d.label.charAt(0).toUpperCase() + d.label.slice(1)),
+            datasets: [{
+                data: data.map(d => d.count),
+                backgroundColor: data.map(d => colorMap[d.label] || '#6366f1'),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Inter' }, usePointStyle: true } } }
+        }
+    });
+}
+
+function initVehicleChart(data) {
+    const ctx = document.getElementById('vehicleChart');
+    if (!ctx || !data.length) return;
+    const icons = { car: '🚗', bike: '🏍️', truck: '🚛', bus: '🚌', auto: '🛺', other: '🚙' };
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => (icons[d.label] || '') + ' ' + d.label.charAt(0).toUpperCase() + d.label.slice(1)),
+            datasets: [{
+                data: data.map(d => d.count),
+                backgroundColor: ['#6366f1','#22d3ee','#10b981','#f59e0b','#ef4444','#8b5cf6'],
+                borderRadius: 8,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: '#94a3b8', font: { size: 13 } }, grid: { display: false } }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Violations{% endblock %}
+{% block page_title %}<i class="fas fa-exclamation-triangle"></i> Violation Types{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+    <form class="search-form" method="GET">
+        <select name="severity" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Severities</option>
+            <option value="low" {% if severity == 'low' %}selected{% endif %}>🟢 Low</option>
+            <option value="medium" {% if severity == 'medium' %}selected{% endif %}>🟡 Medium</option>
+            <option value="high" {% if severity == 'high' %}selected{% endif %}>🟠 High</option>
+            <option value="critical" {% if severity == 'critical' %}selected{% endif %}>🔴 Critical</option>
+        </select>
+    </form>
+    <button class="btn btn-primary" onclick="openModal('addViolationModal')">
+        <i class="fas fa-plus"></i> Add Violation Type
+    </button>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Fine Amount</th>
+                    <th>Severity</th>
+                    <th>Points</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in violations %}
+                <tr class="{% if not v.is_active %}row-inactive{% endif %}">
+                    <td><span class="text-mono text-primary">{{ v.violation_code }}</span></td>
+                    <td>{{ v.description }}</td>
+                    <td><strong>₹{{ "{:,.0f}".format(v.fine_amount) }}</strong></td>
+                    <td><span class="badge badge-severity-{{ v.severity }}">{{ v.severity | capitalize }}</span></td>
+                    <td>{{ v.points }}</td>
+                    <td><span class="badge {% if v.is_active %}badge-active{% else %}badge-inactive{% endif %}">{{ 'Active' if v.is_active else 'Inactive' }}</span></td>
+                    <td class="actions-cell">
+                        <button class="btn-icon btn-edit" onclick='editViolation({{ v | tojson }})' title="Edit"><i class="fas fa-edit"></i></button>
+                        <form method="POST" action="{{ url_for('violations.toggle', violation_id=v.id) }}" class="inline-form">
+                            <button type="submit" class="btn-icon {% if v.is_active %}btn-warn{% else %}btn-success{% endif %}" title="{{ 'Deactivate' if v.is_active else 'Activate' }}">
+                                <i class="fas {% if v.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not violations %}
+                <tr><td colspan="7" class="text-center text-muted empty-state"><i class="fas fa-exclamation-triangle fa-2x"></i><br>No violation types found</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <div class="table-footer"><span class="result-count">{{ violations | length }} violation type(s)</span></div>
+</div>
+
+<!-- Add Violation Modal -->
+<div class="modal" id="addViolationModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-plus-circle"></i> Add Violation Type</h2>
+            <button class="modal-close" onclick="closeModal('addViolationModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('violations.add') }}">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group"><label>Violation Code *</label><input type="text" name="violation_code" required placeholder="e.g. V016"></div>
+                    <div class="form-group"><label>Fine Amount (₹) *</label><input type="number" name="fine_amount" required step="0.01" min="0" placeholder="e.g. 1000"></div>
+                    <div class="form-group form-group-full"><label>Description *</label><input type="text" name="description" required placeholder="e.g. Illegal U-Turn"></div>
+                    <div class="form-group"><label>Severity *</label>
+                        <select name="severity" required>
+                            <option value="low">🟢 Low</option>
+                            <option value="medium" selected>🟡 Medium</option>
+                            <option value="high">🟠 High</option>
+                            <option value="critical">🔴 Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Penalty Points</label><input type="number" name="points" value="0" min="0" max="10"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addViolationModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Violation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Violation Modal -->
+<div class="modal" id="editViolationModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit"></i> Edit Violation Type</h2>
+            <button class="modal-close" onclick="closeModal('editViolationModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" id="editViolationForm">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group"><label>Violation Code *</label><input type="text" name="violation_code" id="edit_vi_code" required></div>
+                    <div class="form-group"><label>Fine Amount (₹) *</label><input type="number" name="fine_amount" id="edit_vi_fine" required step="0.01"></div>
+                    <div class="form-group form-group-full"><label>Description *</label><input type="text" name="description" id="edit_vi_desc" required></div>
+                    <div class="form-group"><label>Severity *</label><select name="severity" id="edit_vi_severity" required>
+                        <option value="low">🟢 Low</option><option value="medium">🟡 Medium</option><option value="high">🟠 High</option><option value="critical">🔴 Critical</option>
+                    </select></div>
+                    <div class="form-group"><label>Penalty Points</label><input type="number" name="points" id="edit_vi_points" min="0" max="10"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editViolationModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editViolation(v) {
+    document.getElementById('editViolationForm').action = '/violations/edit/' + v.id;
+    document.getElementById('edit_vi_code').value = v.violation_code || '';
+    document.getElementById('edit_vi_desc').value = v.description || '';
+    document.getElementById('edit_vi_fine').value = v.fine_amount || '';
+    document.getElementById('edit_vi_severity').value = v.severity || 'medium';
+    document.getElementById('edit_vi_points').value = v.points || 0;
+    openModal('editViolationModal');
+}
+</script>
+{% endblock %}

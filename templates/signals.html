@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Traffic Signals{% endblock %}
+{% block page_title %}<i class="fas fa-traffic-light"></i> Traffic Signal Management{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+    <form class="search-form" method="GET">
+        <select name="status" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            <option value="active" {% if status == 'active' %}selected{% endif %}>🟢 Active</option>
+            <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>🔴 Inactive</option>
+            <option value="maintenance" {% if status == 'maintenance' %}selected{% endif %}>🟡 Maintenance</option>
+        </select>
+    </form>
+    <button class="btn btn-primary" onclick="openModal('addSignalModal')">
+        <i class="fas fa-plus"></i> Add Signal
+    </button>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Signal Code</th>
+                    <th>Location</th>
+                    <th>Intersection</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Installed</th>
+                    <th>Last Maintenance</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in signals %}
+                <tr>
+                    <td><span class="text-mono text-primary">{{ s.signal_code }}</span></td>
+                    <td>{{ s.location }}</td>
+                    <td>{{ s.intersection or '-' }}</td>
+                    <td><span class="badge badge-signal-type">{{ s.signal_type | capitalize }}</span></td>
+                    <td>
+                        <span class="status-dot status-{{ s.status }}"></span>
+                        <span class="badge badge-signal-{{ s.status }}">{{ s.status | capitalize }}</span>
+                    </td>
+                    <td>{{ s.installed_date | format_date }}</td>
+                    <td>{{ s.last_maintenance | format_date }}</td>
+                    <td class="actions-cell">
+                        <button class="btn-icon btn-edit" onclick='editSignal({{ s | tojson }})' title="Edit"><i class="fas fa-edit"></i></button>
+                        <form method="POST" action="{{ url_for('signals.delete', signal_id=s.id) }}" class="inline-form" onsubmit="return confirm('Delete this signal?')">
+                            <button type="submit" class="btn-icon btn-delete" title="Delete"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not signals %}
+                <tr><td colspan="8" class="text-center text-muted empty-state"><i class="fas fa-traffic-light fa-2x"></i><br>No signals found</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <div class="table-footer"><span class="result-count">{{ signals | length }} signal(s) found</span></div>
+</div>
+
+<!-- Add Signal Modal -->
+<div class="modal" id="addSignalModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-plus-circle"></i> Add Traffic Signal</h2>
+            <button class="modal-close" onclick="closeModal('addSignalModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('signals.add') }}">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group"><label>Signal Code *</label><input type="text" name="signal_code" required placeholder="e.g. SIG-006"></div>
+                    <div class="form-group"><label>Status *</label>
+                        <select name="status"><option value="active">🟢 Active</option><option value="inactive">🔴 Inactive</option><option value="maintenance">🟡 Maintenance</option></select>
+                    </div>
+                    <div class="form-group"><label>Location *</label><input type="text" name="location" required placeholder="e.g. MG Road & Park St."></div>
+                    <div class="form-group"><label>Intersection</label><input type="text" name="intersection" placeholder="e.g. Main Junction"></div>
+                    <div class="form-group"><label>Signal Type</label>
+                        <select name="signal_type"><option value="standard">Standard</option><option value="pedestrian">Pedestrian</option><option value="flashing">Flashing</option><option value="smart">Smart</option></select>
+                    </div>
+                    <div class="form-group"><label>Installed Date</label><input type="date" name="installed_date"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addSignalModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Signal</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Signal Modal -->
+<div class="modal" id="editSignalModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit"></i> Edit Traffic Signal</h2>
+            <button class="modal-close" onclick="closeModal('editSignalModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" id="editSignalForm">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group"><label>Signal Code *</label><input type="text" name="signal_code" id="edit_s_code" required></div>
+                    <div class="form-group"><label>Status *</label>
+                        <select name="status" id="edit_s_status"><option value="active">🟢 Active</option><option value="inactive">🔴 Inactive</option><option value="maintenance">🟡 Maintenance</option></select>
+                    </div>
+                    <div class="form-group"><label>Location *</label><input type="text" name="location" id="edit_s_location" required></div>
+                    <div class="form-group"><label>Intersection</label><input type="text" name="intersection" id="edit_s_intersection"></div>
+                    <div class="form-group"><label>Signal Type</label>
+                        <select name="signal_type" id="edit_s_type"><option value="standard">Standard</option><option value="pedestrian">Pedestrian</option><option value="flashing">Flashing</option><option value="smart">Smart</option></select>
+                    </div>
+                    <div class="form-group"><label>Installed Date</label><input type="date" name="installed_date" id="edit_s_installed"></div>
+                    <div class="form-group"><label>Last Maintenance</label><input type="date" name="last_maintenance" id="edit_s_maintenance"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editSignalModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Signal</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editSignal(s) {
+    document.getElementById('editSignalForm').action = '/signals/edit/' + s.id;
+    document.getElementById('edit_s_code').value = s.signal_code || '';
+    document.getElementById('edit_s_status').value = s.status || 'active';
+    document.getElementById('edit_s_location').value = s.location || '';
+    document.getElementById('edit_s_intersection').value = s.intersection || '';
+    document.getElementById('edit_s_type').value = s.signal_type || 'standard';
+    document.getElementById('edit_s_installed').value = s.installed_date ? s.installed_date.split('T')[0] : '';
+    document.getElementById('edit_s_maintenance').value = s.last_maintenance ? s.last_maintenance.split('T')[0] : '';
+    openModal('editSignalModal');
+}
+</script>
+{% endblock %}

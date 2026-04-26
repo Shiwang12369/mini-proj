@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Traffic Management System - Monitor, manage and control traffic flow efficiently">
+    <title>{% block title %}Dashboard{% endblock %} | Traffic Management System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-traffic-light"></i>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-title">TMS</span>
+                    <span class="logo-subtitle">Traffic Management</span>
+                </div>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-section-title">Main</li>
+                <li>
+                    <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                
+                <li class="nav-section-title">Management</li>
+                <li>
+                    <a href="{{ url_for('vehicles.index') }}" class="nav-link {% if request.endpoint and 'vehicles' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-car"></i>
+                        <span>Vehicles</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('owners.index') }}" class="nav-link {% if request.endpoint and 'owners' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-users"></i>
+                        <span>Owners</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('violations.index') }}" class="nav-link {% if request.endpoint and 'violations' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Violations</span>
+                    </a>
+                </li>
+                
+                <li class="nav-section-title">Operations</li>
+                <li>
+                    <a href="{{ url_for('challans.index') }}" class="nav-link {% if request.endpoint and 'challans' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Challans</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('signals.index') }}" class="nav-link {% if request.endpoint and 'signals' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-traffic-light"></i>
+                        <span>Signals</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name">{{ current_user.full_name }}</span>
+                    <span class="user-role">{{ current_user.role | capitalize }}</span>
+                </div>
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}" onclick="this.remove()">
+                            <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% elif category == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
+                            <span>{{ message }}</span>
+                            <button class="flash-close"><i class="fas fa-times"></i></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Modal Backdrop -->
+    <div class="modal-backdrop" id="modalBackdrop" onclick="closeAllModals()"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
